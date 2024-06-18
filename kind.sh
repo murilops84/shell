@@ -1,7 +1,6 @@
 #!/bin/sh
 set -o errexit
 
-
 cluster_name='kind'
 if [ ! -z $1 ]; then
   cluster_name=$1

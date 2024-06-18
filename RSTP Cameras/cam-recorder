@@ -1,0 +1,86 @@
+#!/bin/bash
+
+#COLORS
+txtrst=$(tput sgr0) # Text reset
+txtred=$(tput setaf 1) #Red
+txtgrn=$(tput setaf 2) # Green
+txtorg=$(tput setaf 3) # Yellow
+txtblu=$(tput setaf 4) # Blue
+txtprp=$(tput setaf 5) # Purple
+txtcya=$(tput setaf 6) # Cyan
+txtgry=$(tput setaf 8) # Grey
+
+
+prefix=CAM_STREAM_
+record_path=$HOME/Videos/cameras/
+#typeset -p | awk '$3 ~ "^"pfx { print $3 }' pfx="$prefix"
+
+make_dir() {
+  $(mkdir -p $1)
+}
+
+check_clean_directory() {
+  if [[ ! -d $1 ]] then
+    make_dir "${record_path}/$1"
+  fi
+  snapshot=$1_snapshot
+  if [[ ! -d $snapshot ]] then
+    make_dir "${record_path}/$snapshot"
+  fi
+  $(find "${record_path}/$1" -type f -mtime +7 -printf '%T+ %p\n' -delete)
+  echo "${txtgrn}Directories checked${txtrst}"
+}
+
+record_camera() {
+  cam=$1
+  KEY=${cam%%=*}
+  CAM_STREAM=${cam#*=}
+  CAM_NAME=${KEY##*_}
+  echo "${txtcya}${CAM_NAME} - ${txtgry}${CAM_STREAM}${txtrst}"
+  check_clean_directory $CAM_NAME
+
+  $(ffmpeg -i ${CAM_STREAM//\"/} -hide_banner -loglevel warning -abort_on empty_output -analyzeduration 1000000 -probesize 1000000 -s 720x480 -segment_time 900 -metadata title=${CAM_NAME} \
+  -c:v copy -preset ultrafast -f hls -hls_time 2 -hls_list_size 3 -start_number 0 -hls_allow_cache 0 -hls_flags +delete_segments+omit_endlist+discont_start \
+  -reset_timestamps 1 -strict -2 -segment_format_options movflags=faststart -f segment -segment_atclocktime 1 -reset_timestamps 1 -strftime 1 \
+  "$HOME/Videos/cameras/${CAM_NAME}/%Y-%m-%dT%H-%M-%S.mp4" \
+  -s 720x480 -vf fps=0.067 -f image2 -strftime 1 \
+  "$HOME/Videos/cameras/${CAM_NAME}_snapshot/%Y-%m-%dT%H-%M-%S.jpg" &> $HOME/Videos/cameras/${CAM_NAME}/${CAM_NAME}.log &)
+}
+
+start_all_cam() {
+  cameras=$(typeset -p | awk '$3 ~ "^"pfx { print $3 }' pfx="$prefix")
+  if [[ -z $cameras ]] then
+    echo "${txtorg}No environment variables set for cameras."
+    echo "${txtrst}Create environment variable prefixed by CAM_STREAM_{CAM-NAME} with the camera url stream."
+    exit 1
+  fi
+
+  for cam in $cameras; do
+    record_camera $cam
+  done
+}
+
+restart_cam() {
+  camera=$(typeset -p | awk '$3 ~ "^"pfx""sfx { print $3 }' sfx="$1" pfx="$prefix")
+  if [[ -z $camera ]] then
+    echo "${txtred}No environment variable set for camera $1"
+    exit 1
+  fi
+
+  pid=$(ps -ef | grep ffmpeg | grep $1 | awk '{print $2}')
+  if [[ ! -z $pid ]] then
+    $(kill $pid)
+    echo "${txtorg}Process killed ${pid}${txtrst}"
+  fi
+  record_camera $camera  
+}
+
+if [[ ! -z $1 ]] then
+  echo "${txtorg}Restart${txtrst}"
+  restart_cam $1
+else
+  echo "${txtorg}Start all${txtrst}"
+  start_all_cam
+fi
+
+exit 0

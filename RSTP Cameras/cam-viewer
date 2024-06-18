@@ -1,0 +1,70 @@
+#!/bin/bash
+
+#COLORS
+txtrst=$(tput sgr0) # Text reset
+txtred=$(tput setaf 1) #Red
+txtgrn=$(tput setaf 2) # Green
+txtylw=$(tput setaf 3) # Yellow
+txtblu=$(tput setaf 4) # Blue
+txtprp=$(tput setaf 5) # Purple
+txtcya=$(tput setaf 6) # Cyan
+txtgry=$(tput setaf 8) # Grey
+
+prefix=CAM_STREAM_
+
+validate_directory() {
+  if [[ ! -d $1 ]] then
+    $(mkdir -p ${record_path}/$1)
+  fi
+}
+
+start_camera() {
+  cam=$1
+  KEY=${cam%%=*}
+  CAM_STREAM=${cam#*=}
+  CAM_NAME=${KEY##*_}
+  echo "${txtcya}$CAM_NAME - ${txtgry}$CAM_STREAM"
+  
+  $(ffplay -window_title "${CAM_NAME} CAMVIEWER" -hide_banner -loglevel warning -probesize 1000000 -analyzeduration 1000000 \
+  -framedrop -fflags nobuffer -fast -x 854 -y 480 -volume 0 -sync ext \
+  -vf "drawtext=text='volume-up=*|volume-down=/':fontsize=25:fontcolor=white:x=(w-text_w)/2:y=h-th" \
+   ${CAM_STREAM//\"/} &> $HOME/Videos/cameras/${CAM_NAME}/${CAM_NAME}-Viewer.log &)
+  echo $!
+}
+
+start_all_cam() {
+  cameras=$(typeset -p | awk '$3 ~ "^"pfx { print $3 }' pfx="$prefix")
+  if [[ -z $cameras ]] then
+    echo "${txtylw}No environment variables set for cameras."
+    echo "${txtrst}Create environment variable prefixed by CAM_STREAM_{CAM-NAME} with the camera url stream."
+    exit 1
+  fi
+
+  for cam in $cameras; do
+    start_camera $cam
+  done
+}
+
+restart_cam() {
+  camera=$(typeset -p | awk '$3 ~ "^"pfx""sfx { print $3 }' sfx="$1" pfx="$prefix")
+  if [[ -z $camera ]] then
+    echo "${txtred}No environment variable set for camera $1"
+    exit 1
+  fi
+
+  pid=$(ps -ef | grep ffplay | grep $1 | awk '{print $2}')
+  if [[ ! -z $pid ]] then
+    $(kill $pid)
+  fi
+  start_camera $camera  
+}
+
+if [[ ! -z $1 ]] then
+  echo "Restart"
+  restart_cam $1
+else
+  echo "Start all"
+  start_all_cam
+fi
+
+exit 0
