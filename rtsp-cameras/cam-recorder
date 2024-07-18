@@ -27,7 +27,7 @@ check_clean_directory() {
   if [[ ! -d $snapshot ]] then
     make_dir "${record_path}/$snapshot"
   fi
-  $(find "${record_path}/$1" -type f -mtime +7 -printf '%T+ %p\n' -delete)
+  $(find "${record_path}/$1" -type f -mtime +7 -delete)
   echo "${txtgrn}Directories checked${txtrst}"
 }
 
@@ -61,7 +61,7 @@ start_all_cam() {
 }
 
 restart_cam() {
-  camera=$(typeset -p | awk '$3 ~ "^"pfx""sfx { print $3 }' sfx="$1" pfx="$prefix")
+  camera=$(typeset -p | awk '$3 ~ "^"pfx""sfx { print $3 }' pfx="$prefix" sfx="$1")
   if [[ -z $camera ]] then
     echo "${txtred}No environment variable set for camera $1"
     exit 1
