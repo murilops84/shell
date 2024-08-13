@@ -41,7 +41,7 @@ record_camera() {
 
   $(ffmpeg -i ${CAM_STREAM//\"/} -hide_banner -loglevel warning -abort_on empty_output -analyzeduration 1000000 -probesize 1000000 -s 720x480 -segment_time 900 -metadata title=${CAM_NAME} \
   -c:v copy -preset ultrafast -f hls -hls_time 2 -hls_list_size 3 -start_number 0 -hls_allow_cache 0 -hls_flags +delete_segments+omit_endlist+discont_start \
-  -reset_timestamps 1 -strict -2 -segment_format_options movflags=faststart -f segment -segment_atclocktime 1 -reset_timestamps 1 -strftime 1 \
+  -reset_timestamps 1 -strict -2 -segment_format_options movflags=faststart -f segment -segment_atclocktime 1 -pix_fmt yuv420p -strftime 1 \
   "$HOME/Videos/cameras/${CAM_NAME}/%Y-%m-%dT%H-%M-%S.mp4" \
   -s 720x480 -vf fps=0.067 -f image2 -strftime 1 \
   "$HOME/Videos/cameras/${CAM_NAME}_snapshot/%Y-%m-%dT%H-%M-%S.jpg" &> $HOME/Videos/cameras/${CAM_NAME}/${CAM_NAME}.log &)
