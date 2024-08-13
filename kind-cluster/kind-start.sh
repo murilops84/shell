@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -o errexit
 
 cluster_name='kind'
@@ -7,12 +7,15 @@ if [ ! -z $1 ]; then
 fi
 
 # create registry container unless it already exists
-reg_name='registry'
-reg_port='5000'
+if [[ ! -d auth ]] then
+	mkdir auth
+fi
+
 if [ "$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)" != 'true' ]; then
-  docker run \
-    -d --restart=always -p "127.0.0.1:${reg_port}:5000" --name "${reg_name}" \
-    registry:2
+	docker run --entrypoint htpasswd httpd -Bbn admin admin > auth/htpasswd
+	docker run -d --restart=always -p 5000:5000 --name registry_private \
+		-v `pwd`/auth:/auth -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e "REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd" \
+		registry:2
 fi
 
 # create a cluster with the local registry enabled in containerd
@@ -22,13 +25,10 @@ name: ${cluster_name}
 apiVersion: kind.x-k8s.io/v1alpha4
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
-    endpoint= ["http://${reg_name}:5000"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5000"]
+    endpoint= ["http://registry_private:5000"]
 nodes:
 - role: control-plane
-  extraMounts:
-  - containerPath: /var/lib/kubelet/config.json
-    hostPath: /home/murilo/.docker/config.json
   extraPortMappings:
   - containerPort: 80
     hostPort: 80
@@ -45,16 +45,16 @@ nodes:
       kubeletExtraArgs:
         node-labels: "ingress-ready=true"
 - role: worker
-  extraMounts:
-  - containerPath: /var/lib/kubelet/config.json
-    hostPath: /home/murilo/.docker/config.json
   labels:
     app: dev
+networking:
+  apiServerAddress: "0.0.0.0"
+  apiServerPort: 6443
 EOF
 
 # connect the registry to the cluster network if not already connected
-if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' "${reg_name}")" = 'null' ]; then
-  docker network connect "kind" "${reg_name}"
+if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' registry_private)" = 'null' ]; then
+  docker network connect "kind" "registry_private"
 fi
 
 # Document the local registry
@@ -67,7 +67,7 @@ metadata:
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "localhost:${reg_port}"
+    host: "localhost:5000"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
 
@@ -81,7 +81,7 @@ metadata:
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "localhost:${reg_port}"
+    host: "localhost:5000"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
 
@@ -89,7 +89,21 @@ EOF
 kubectl create namespace dev
 
 # Create nginx secret
-kubectl create -n dev secret tls secret-tls --key=./tls.key  --cert=./tls.crt
+HOST=server.internal
+SSL_DIR=$HOME/.ssl
+KEY_FILE=tls.key
+CERT_FILE=tls.crt
+if [[ ! -d ${SSL_DIR} ]] then
+	echo 'Create SSL directory'
+	$(mkdir -p ${SSL_DIR})
+fi
+
+if [[ ! -e ${SSL_DIR}/${CERT_FILE} ]] then
+	echo 'Create TLS files'
+	openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${SSL_DIR}/${KEY_FILE} -out ${SSL_DIR}/${CERT_FILE} -subj "/CN=${HOST}/O=${HOST}" -addext "subjectAltName = DNS:${HOST}"
+fi
+
+kubectl create -n dev secret tls secret-tls --key=${SSL_DIR}/${KEY_FILE}  --cert=${SSL_DIR}/${CERT_FILE}
 
 # Deploy nginx ingress controller
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
