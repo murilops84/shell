@@ -18,12 +18,21 @@ validate_directory() {
   fi
 }
 
+stop_old_process() {
+  pid=$(ps -ef | grep ffplay | grep $1 | awk '{print $2}')
+  if [[ ! -z $pid ]] then
+    $(kill $pid)
+  fi
+}
+
 start_camera() {
   cam=$1
   KEY=${cam%%=*}
   CAM_STREAM=${cam#*=}
   CAM_NAME=${KEY##*_}
   echo "${txtcya}$CAM_NAME - ${txtgry}$CAM_STREAM"
+
+  stop_old_process $CAM_NAME
   
   $(ffplay -window_title "${CAM_NAME} CAMVIEWER" -hide_banner -loglevel warning -probesize 1000000 -analyzeduration 1000000 \
   -framedrop -fflags nobuffer -fast -x 854 -y 480 -volume 0 -sync ext \
@@ -46,16 +55,12 @@ start_all_cam() {
 }
 
 restart_cam() {
-  camera=$(typeset -p | awk '$3 ~ "^"pfx""sfx { print $3 }' sfx="$1" pfx="$prefix")
+  camera=$(typeset -p | awk '$3 ~ "^"pfx""sfx { print $3 }' pfx="$prefix" sfx="$1")
   if [[ -z $camera ]] then
     echo "${txtred}No environment variable set for camera $1"
     exit 1
   fi
 
-  pid=$(ps -ef | grep ffplay | grep $1 | awk '{print $2}')
-  if [[ ! -z $pid ]] then
-    $(kill $pid)
-  fi
   start_camera $camera  
 }
 

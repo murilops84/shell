@@ -31,6 +31,14 @@ check_clean_directory() {
   echo "${txtgrn}Directories checked${txtrst}"
 }
 
+stop_old_process() {
+  pid=$(ps -ef | grep ffmpeg | grep $1 | awk '{print $2}')
+  if [[ ! -z $pid ]] then
+    $(kill $pid)
+    echo "${txtorg}Process killed ${pid}${txtrst}"
+  fi
+}
+
 record_camera() {
   cam=$1
   KEY=${cam%%=*}
@@ -38,6 +46,8 @@ record_camera() {
   CAM_NAME=${KEY##*_}
   echo "${txtcya}${CAM_NAME} - ${txtgry}${CAM_STREAM}${txtrst}"
   check_clean_directory $CAM_NAME
+
+  stop_old_process $CAM_NAME
 
   $(ffmpeg -i ${CAM_STREAM//\"/} -hide_banner -loglevel warning -abort_on empty_output -analyzeduration 1000000 -probesize 1000000 -s 720x480 -segment_time 900 -metadata title=${CAM_NAME} \
   -c:v copy -preset ultrafast -f hls -hls_time 2 -hls_list_size 3 -start_number 0 -hls_allow_cache 0 -hls_flags +delete_segments+omit_endlist+discont_start \
@@ -67,11 +77,6 @@ restart_cam() {
     exit 1
   fi
 
-  pid=$(ps -ef | grep ffmpeg | grep $1 | awk '{print $2}')
-  if [[ ! -z $pid ]] then
-    $(kill $pid)
-    echo "${txtorg}Process killed ${pid}${txtrst}"
-  fi
   record_camera $camera  
 }
 
