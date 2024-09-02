@@ -13,7 +13,6 @@ txtgry=$(tput setaf 8) # Grey
 
 prefix=CAM_STREAM_
 record_path=$HOME/Videos/cameras/
-#typeset -p | awk '$3 ~ "^"pfx { print $3 }' pfx="$prefix"
 
 make_dir() {
   $(mkdir -p $1)
