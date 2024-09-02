@@ -4,7 +4,7 @@
 txtrst=$(tput sgr0) # Text reset
 txtred=$(tput setaf 1) #Red
 txtgrn=$(tput setaf 2) # Green
-txtorg=$(tput setaf 3) # Yellow
+txtyel=$(tput setaf 3) # Yellow
 txtblu=$(tput setaf 4) # Blue
 txtprp=$(tput setaf 5) # Purple
 txtcya=$(tput setaf 6) # Cyan
@@ -35,7 +35,7 @@ stop_old_process() {
   pid=$(ps -ef | grep ffmpeg | grep $1 | awk '{print $2}')
   if [[ ! -z $pid ]] then
     $(kill $pid)
-    echo "${txtorg}Process killed ${pid}${txtrst}"
+    echo "${txtyel}Process killed ${pid}${txtrst}"
   fi
 }
 
@@ -60,7 +60,7 @@ record_camera() {
 start_all_cam() {
   cameras=$(typeset -p | awk '$3 ~ "^"pfx { print $3 }' pfx="$prefix")
   if [[ -z $cameras ]] then
-    echo "${txtorg}No environment variables set for cameras."
+    echo "${txtyel}No environment variables set for cameras."
     echo "${txtrst}Create environment variable prefixed by CAM_STREAM_{CAM-NAME} with the camera url stream."
     exit 1
   fi
@@ -81,10 +81,10 @@ restart_cam() {
 }
 
 if [[ ! -z $1 ]] then
-  echo "${txtorg}Restart${txtrst}"
+  echo "${txtyel}Restart${txtrst}"
   restart_cam $1
 else
-  echo "${txtorg}Start all${txtrst}"
+  echo "${txtyel}Start all${txtrst}"
   start_all_cam
 fi
 
