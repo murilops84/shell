@@ -1,0 +1,16 @@
+#!/bin/sh
+cams=$(printenv | awk -F "=" '$1 ~ "^CAM_" {print $1}' | awk -F "_" '{print $2}')
+rec_path=/mnt/cctv/records
+
+echo "Last files:"
+for cam in $cams; do
+  echo $cam: $(find ${rec_path}/$cam -name "*.mp4" | sort -n | tail -n1)
+done
+
+echo "----------------------------------------------------"
+echo "Active records:"
+active=$(find /mnt/cctv/records -type f -name "*.mp4" -cmin .5 | awk -F "/" '{print $5}')
+for act in $active; do
+  echo " - $act"
+done
+#find $rec_path -name "*.mp4" -cmin .1
