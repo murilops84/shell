@@ -1,0 +1,15 @@
+#!/bin/bash
+images=$(grep -rE "image" . --include="docker-compose.*" --include="compose.*" 2> /dev/null | awk -F ": " '{print $3}')
+need_update=()
+for image in $images; do
+  docker pull ${image//\"/}
+  updated=$(docker ps --filter "ancestor=$image" --format '{{.ID}}')
+  if [[ -z $updated ]]; then
+    need_update+=$image
+  fi
+done
+
+echo Need update: ${#need_update[@]} images
+if [[ ${#need_update[@]} > 0 ]]; then
+  docker compose up -d --force-recreate
+fi
