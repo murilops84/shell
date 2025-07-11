@@ -3,7 +3,7 @@ images=$(grep -rE "image" . --include="docker-compose.*" --include="compose.*" 2
 need_update=()
 for image in $images; do
   docker pull ${image//\"/}
-  updated=$(docker ps --filter "ancestor=$image" --format '{{.ID}}')
+  updated=$(docker ps --filter "ancestor=${image//\"/}" --format '{{.ID}}')
   if [[ -z $updated ]]; then
     need_update+=$image
   fi
