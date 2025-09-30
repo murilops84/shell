@@ -1,0 +1,26 @@
+#!/bin/bash
+
+LOG_DIR=$HOME/.local/share/sshuttle/
+LOCAL_DNS=127.0.0.1
+REMOTE_SERVER=192.168.15.9
+REMOTE_NETWORK=10.0.0.0/8
+
+
+if [ ! -d $LOG_DIR ]; then
+  mkdir -p $HOME/.local/share/sshuttle
+fi
+
+sshuttle -r $REMOTE_SERVER $REMOTE_NETWORK --ns-hosts=$LOCAL_DNS -v > $LOG_DIR/sshuttle.log 2>&1 &
+SSHUTTLE_PID=$!
+
+cleanup() {
+  echo "Cleaning process..."
+  kill "$SSH_PID" 2>/dev/null
+  wait "$SSH_PID" 2>/dev/null
+  kill "$SSHUTTLE_PID" 2>/dev/null
+  wait "$SSHUTTLE_PID" 2>/dev/null
+}
+trap cleanup EXIT
+
+ssh -q -C $REMOTE_SERVER
+SSH_PID=$!
