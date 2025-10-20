@@ -5,7 +5,7 @@ for image in $images; do
   docker pull ${image//\"/}
   updated=$(docker ps --filter "ancestor=${image//\"/}" --format '{{.ID}}')
   if [[ -z $updated ]]; then
-    need_update+=$image
+    need_update+=($image)
   fi
 done
 
