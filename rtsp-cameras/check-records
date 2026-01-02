@@ -4,13 +4,22 @@ rec_path=/mnt/cctv/records
 
 echo "Last files:"
 for cam in $cams; do
-  echo $cam: $(find ${rec_path}/$cam -name "*.mp4" | sort -n | tail -n1)
+  echo $cam: $(find ${rec_path}/$cam -name "*.mkv" | sort -n | tail -n1)
 done
 
 echo "----------------------------------------------------"
 echo "Active records:"
-active=$(find /mnt/cctv/records -type f -name "*.mp4" -cmin .5 | awk -F "/" '{print $5}')
+active=$(find "$rec_path" -type f -name "*.mkv" -cmin .5 | awk -F "/" '{print $5}')
 for act in $active; do
   echo " - $act"
 done
 #find $rec_path -name "*.mp4" -cmin .1
+
+echo "----------------------------------------------------"
+echo "Restart count and date:"
+docker ps --filter "label=cctv" --format "{{.Names}}" | xargs docker inspect --format "{{.Name}} {{.RestartCount}} {{.State.StartedAt}}"
+
+echo "----------------------------------------------------"
+echo "Filesystem available space:"
+df -h "$rec_path" | tail -n 2
+
