@@ -11,5 +11,5 @@ done
 
 echo Need update: ${#need_update[@]} images
 if [[ ${#need_update[@]} > 0 ]]; then
-  docker compose up -d --force-recreate
+  docker compose up -d
 fi
