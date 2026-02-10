@@ -1,2 +1,0 @@
-#!/bin/bash
-gp-saml-gui -S --gateway --no-verify --allow-insecure-crypto --clientos=Windows ${GP_HOST} -- --csd-wrapper=hipreport.sh
